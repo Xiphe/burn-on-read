@@ -4,6 +4,7 @@
   "description": "securely send encrypted messages that can only be read once",
   "main": " ",
   "scripts": {
+    "dev": "arc sandbox",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -15,5 +16,10 @@
   "bugs": {
     "url": "https://github.com/Xiphe/burn-on-read/issues"
   },
-  "homepage": "https://github.com/Xiphe/burn-on-read#readme"
+  "homepage": "https://github.com/Xiphe/burn-on-read#readme",
+  "devDependencies": {
+    "@architect/architect": "10.12.6",
+    "@architect/plugin-typescript": "1.1.1",
+    "@types/node": "18.16.18"
+  }
 }
