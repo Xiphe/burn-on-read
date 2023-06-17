@@ -1,44 +1,257 @@
+/**
+ * @typedef {{ ciphertext: Uint8Array, iv: Uint8Array }} CipherMessage
+ */
+
 async function main() {
-  const $sealButton = document.getElementById('seal');
-  if ($sealButton) {
-    $sealButton.addEventListener('click', async () => {
-      $sealButton.setAttribute('disabled', 'true');
-      $sealButton.innerText = 'Sealing...';
+  document.getElementById('seal')?.addEventListener('click', handleSealClick);
 
-      const $editor = document.getElementById('editor');
+  const $readButton = document.getElementById('read');
+  if (isButton($readButton)) {
+    const message = deserializeMessageFromUrl();
+    const keyId = $readButton.dataset.id;
 
-      if (!isTextArea($editor)) {
-        throw new Error('No editor found');
-      }
+    if (typeof keyId !== 'string') {
+      throw new Error('Invalid keyId');
+    }
 
-      const key = await generateKey();
-      const message = $editor.value;
-      const { encryptedMessage, iv } = await encryptMessage(key, message);
-      const exportedKey = arrayToBase64(await exportKey(key));
-      const serializedMessage = arrayToBase64(encryptedMessage);
-      const serializedIv = arrayToBase64(iv);
+    const checksum = await validateMessage(message, keyId);
 
-      const url = new URL(window.location.href);
-      url.pathname = '/read';
-      url.hash = `#${serializedMessage}:${serializedIv}`;
-
-      const finalUrl = url.toString();
-
-      console.log(finalUrl);
+    $readButton.addEventListener('click', (ev) => {
+      handleDecryptionClick(ev, message, keyId, checksum);
     });
+    $readButton.removeAttribute('disabled');
+    $readButton.innerText = 'Read message';
   }
+}
+
+main();
+
+/**
+ * @param {CipherMessage} message
+ * @param {string} keyId
+ */
+async function validateMessage(message, keyId) {
+  const currentMessageChecksum = await generateChecksum(
+    new Uint8Array([...message.ciphertext, ...message.iv]),
+  );
+
+  const res = await fetch('/api/key/' + keyId + '/' + currentMessageChecksum);
+  if (!res.ok) {
+    throw new Error('Invalid message');
+  }
+  const data = await res.json();
+  if (
+    !isRecord(data) ||
+    data.status !== 'ok' ||
+    typeof data.valid !== 'boolean'
+  ) {
+    throw new Error('Invalid response');
+  }
+
+  if (data.valid !== true) {
+    throw new Error('Invalid message');
+  }
+
+  return currentMessageChecksum;
+}
+
+/**
+ * @param {MouseEvent} ev
+ */
+async function handleSealClick(ev) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  const $sealButton = ev.target;
+
+  if (!isButton($sealButton)) {
+    throw new Error('Invalid event target');
+  }
+
+  $sealButton.setAttribute('disabled', 'true');
+  $sealButton.innerText = 'Sealing...';
+
+  const $editor = document.getElementById('editor');
+
+  if (!isTextArea($editor)) {
+    throw new Error('No editor found');
+  }
+
+  $editor.setAttribute('readonly', 'true');
+
+  const message = $editor.value;
+  const sharableUrl = await handleEncryption(message);
+
+  const $linkInput = document.createElement('input');
+  $linkInput.setAttribute('readonly', 'true');
+  const linkStyles =
+    'block w-full rounded-lg bg-stone-100 text-stone-950 dark:bg-stone-800 dark:text-stone-50 px-5 py-6 shadow sm:px-6 outline-none focus-visible:ring-2 focus-visible:ring-gray-600 dark:focus-visible:ring-gray-200';
+  $linkInput.setAttribute('class', linkStyles);
+  $linkInput.value = sharableUrl;
+
+  // await handleDecryption(sharableUrl.split('#')[1], 'keyId');
+
+  $sealButton.remove();
+  $editor.replaceWith($linkInput);
+  $linkInput.select();
+}
+
+/**
+ * @param {MouseEvent} ev
+ * @param {CipherMessage} message
+ * @param {string} keyId
+ * @param {string} checksum
+ */
+async function handleDecryptionClick(ev, message, keyId, checksum) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  const $readButton = ev.target;
+
+  if (!isButton($readButton)) {
+    throw new Error('Invalid event target');
+  }
+
+  $readButton.setAttribute('disabled', 'true');
+  $readButton.innerText = 'Decrypting...';
+
+  const decryptedMessage = await handleDecryption(message, keyId, checksum);
+
+  // todo: markdown
+  const $message = document.createElement('div');
+  $message.innerText = decryptedMessage;
+  $readButton.replaceWith($message);
+}
+
+/**
+ * @param {string} message
+ */
+async function handleEncryption(message) {
+  const key = await generateKey();
+  const { encryptedMessage, iv } = await encryptMessage(key, message);
+  const exportedKey = arrayToBase64(await exportKey(key));
+  const checksum = await generateChecksum(
+    new Uint8Array([...encryptedMessage, ...iv]),
+  );
+
+  // TODO: Save key to database
+  const res = await fetch('/api/key', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ key: exportedKey, checksum }),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to store key');
+  }
+
+  /** @type {unknown} */
+  const data = await res.json();
+
+  if (!isRecord(data)) {
+    throw new Error('Invalid response');
+  }
+
+  if (data.status !== 'ok' || typeof data.keyId !== 'string') {
+    throw new Error('Invalid response');
+  }
+
+  const serializedMessage = arrayToBase64(encryptedMessage);
+  const serializedIv = arrayToBase64(iv);
+
+  const url = new URL(window.location.href);
+  url.pathname = '/read/' + data.keyId;
+  url.hash = `#${serializedMessage}:${serializedIv}`;
+
+  const finalUrl = url.toString();
+
+  return finalUrl;
+}
+
+/**
+ * @returns {CipherMessage}
+ */
+function deserializeMessageFromUrl() {
+  const [ciphertext, iv] = window.location.hash.replace(/^#/, '').split(':');
+
+  if (typeof iv !== 'string') {
+    throw new Error('Invalid message');
+  }
+
+  return {
+    ciphertext: base64ToArray(ciphertext),
+    iv: base64ToArray(iv),
+  };
+}
+
+/**
+ * @param {CipherMessage} message
+ * @param {string} keyId
+ * @param {string} checksum
+ */
+async function handleDecryption(message, keyId, checksum) {
+  const res = await fetch('/api/key', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id: keyId, checksum }),
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to get key');
+  }
+
+  /** @type {unknown} */
+  const data = await res.json();
+
+  if (!isRecord(data) || data.status !== 'ok' || typeof data.key !== 'string') {
+    throw new Error('Invalid response');
+  }
+
+  const importedKey = await importKey(base64ToArray(data.key));
+  const decryptedMessage = await decryptMessage(
+    importedKey,
+    message.ciphertext,
+    message.iv,
+  );
+
+  return decryptedMessage;
 }
 
 /**
  *
- * @param {HTMLElement | null} element
+ * @param {HTMLElement | EventTarget | null} element
+ * @returns {element is HTMLButtonElement}
+ */
+function isButton(element) {
+  return isHTMLElement(element) && element.tagName === 'BUTTON';
+}
+
+/**
+ *
+ * @param {HTMLElement | EventTarget | null} element
  * @returns {element is HTMLTextAreaElement}
  */
 function isTextArea(element) {
-  return element?.tagName === 'TEXTAREA';
+  return isHTMLElement(element) && element.tagName === 'TEXTAREA';
 }
 
-main();
+/**
+ *
+ * @param {HTMLElement | EventTarget | null} element
+ * @returns {element is HTMLElement}
+ */
+function isHTMLElement(element) {
+  return Boolean(element && 'tagName' in element);
+}
+
+/**
+ * @param {unknown} obj
+ * @returns {obj is Record<string, unknown>}
+ */
+function isRecord(obj) {
+  return typeof obj === 'object' && obj !== null;
+}
 
 async function generateKey() {
   // Generate a new AES-GCM key
@@ -77,6 +290,27 @@ async function encryptMessage(key, message) {
     encryptedMessage: new Uint8Array(encryptedMessage),
     iv,
   };
+}
+
+/**
+ * @param {CryptoKey} key
+ * @param {Uint8Array} encryptedMessage
+ * @param {Uint8Array} iv
+ */
+async function decryptMessage(key, encryptedMessage, iv) {
+  const decryptedMessageBuffer = await window.crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: iv,
+    },
+    key,
+    encryptedMessage,
+  );
+
+  const decoder = new TextDecoder();
+  const decryptedMessage = decoder.decode(decryptedMessageBuffer);
+
+  return decryptedMessage;
 }
 
 /**
@@ -131,22 +365,12 @@ function base64ToArray(base64) {
 }
 
 /**
- * @param {CryptoKey} key
- * @param {Uint8Array} encryptedMessage
- * @param {Uint8Array} iv
+ * @param {Uint8Array} data
+ * @returns
  */
-async function decryptMessage(key, encryptedMessage, iv) {
-  const decryptedMessageBuffer = await window.crypto.subtle.decrypt(
-    {
-      name: 'AES-GCM',
-      iv: iv,
-    },
-    key,
-    encryptedMessage,
-  );
+async function generateChecksum(data) {
+  // Generate a SHA-256 hash of the data
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
 
-  const decoder = new TextDecoder();
-  const decryptedMessage = decoder.decode(decryptedMessageBuffer);
-
-  return decryptedMessage;
+  return arrayToBase64(new Uint8Array(hashBuffer));
 }

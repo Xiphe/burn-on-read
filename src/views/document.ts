@@ -13,6 +13,7 @@ const navStyles = `${focusStyles} text-gray-600 dark:text-gray-300 hover:bg-gray
 const nav: Record<string, [path: string, name: string]> = {
   about: ['/', 'About'],
   write: ['/write', 'Write a Burn on Read Message'],
+  // read: ['/read', 'Read'],
 };
 
 export default function Document({ children, navId, title }: DocumentProps) {
@@ -25,7 +26,7 @@ export default function Document({ children, navId, title }: DocumentProps) {
  <meta name="viewport" content="width=device-width, initial-scale=1">
  <link rel="shortcut icon" href="${asset('/favicon.png')}">
  <link rel="stylesheet" href="${asset('/styles.css')}">
- <script src="${asset('/script.js')}" defer></script>
+ <script src="${asset('/script.js')}" defer type="module"></script>
 </head>
 <body class="bg-stone-100 text-stone-950 dark:bg-stone-900 dark:text-stone-50">
 
