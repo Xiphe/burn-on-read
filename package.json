@@ -1,0 +1,19 @@
+{
+  "name": "burn-on-read",
+  "version": "0.0.0-development",
+  "description": "securely send encrypted messages that can only be read once",
+  "main": " ",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Xiphe/burn-on-read.git"
+  },
+  "author": "Hannes Diercks <node@xiphe.net> (https://xiphe.net/)",
+  "license": "GNU GPLv3",
+  "bugs": {
+    "url": "https://github.com/Xiphe/burn-on-read/issues"
+  },
+  "homepage": "https://github.com/Xiphe/burn-on-read#readme"
+}
