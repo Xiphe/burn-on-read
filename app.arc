@@ -3,6 +3,7 @@ burn-on-read
 
 @http
 get /
+get /write
 
 @aws
 # profile default
@@ -12,3 +13,6 @@ runtime typescript
 
 @plugins
 architect/plugin-typescript
+
+@static
+fingerprint true

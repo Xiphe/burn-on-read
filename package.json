@@ -4,7 +4,8 @@
   "description": "securely send encrypted messages that can only be read once",
   "main": " ",
   "scripts": {
-    "dev": "arc sandbox",
+    "dev": "arc sandbox & npm run build:tailwind -- --watch",
+    "build:tailwind": "tailwindcss -o ./public/styles.css --minify",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -20,6 +21,10 @@
   "devDependencies": {
     "@architect/architect": "10.12.6",
     "@architect/plugin-typescript": "1.1.1",
-    "@types/node": "18.16.18"
+    "@types/node": "18.16.18",
+    "tailwindcss": "3.3.2"
+  },
+  "dependencies": {
+    "@architect/functions": "6.0.1"
   }
 }

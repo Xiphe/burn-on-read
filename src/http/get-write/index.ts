@@ -1,6 +1,6 @@
 import { Context, APIGatewayProxyResult, APIGatewayEvent } from 'aws-lambda';
 import Document from '@architect/views/document';
-import Content from '@architect/views/content';
+import Editor from '@architect/views/editor';
 
 export const handler = async (
   event: APIGatewayEvent,
@@ -9,11 +9,9 @@ export const handler = async (
   return {
     statusCode: 200,
     body: Document({
-      navId: 'about',
-      title: 'How to securely share messages.',
-      children: Content({
-        children: 'Hello world!',
-      }),
+      navId: 'write',
+      title: 'Write your burn-on-read message.',
+      children: Editor(),
     }),
     headers: {
       'content-type': 'text/html; charset=utf8',
