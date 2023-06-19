@@ -2,6 +2,7 @@ import { Context, APIGatewayProxyResult, APIGatewayEvent } from 'aws-lambda';
 import { tables } from '@architect/functions';
 import { delayRandomly } from '@architect/shared/randomDelay';
 import { isRecord } from '@architect/shared/is';
+import { decrypt } from '@architect/shared/encrypt';
 
 export const handler = async (
   event: APIGatewayEvent,
@@ -44,12 +45,13 @@ export const handler = async (
       };
     }
 
-    // TODO: decrypt it with KMS
+    const key = (await decrypt(entry.key)).toString('base64');
+
     await keys.delete({ id: body.id });
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ status: 'ok', key: entry.key }),
+      body: JSON.stringify({ status: 'ok', key }),
       headers: {
         'content-type': 'application/json; charset=utf8',
       },

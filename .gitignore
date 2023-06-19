@@ -2,3 +2,5 @@ node_modules
 .build
 public/styles.css
 public/static.json
+sam.json
+sam.yaml

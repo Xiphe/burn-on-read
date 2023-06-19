@@ -2,6 +2,7 @@ import { Context, APIGatewayProxyResult, APIGatewayEvent } from 'aws-lambda';
 import { tables } from '@architect/functions';
 import { randomUUID } from 'node:crypto';
 import { isRecord } from '@architect/shared/is';
+import { encrypt } from '@architect/shared/encrypt';
 
 export const handler = async (
   event: APIGatewayEvent,
@@ -23,8 +24,11 @@ export const handler = async (
     const keys = await tables().then((client) => client.keys);
     const keyId = randomUUID();
 
-    // TODO: encrypt key
-    await keys.put({ id: keyId, key, checksum });
+    await keys.put({
+      id: keyId,
+      key: await encrypt(Buffer.from(key, 'base64')),
+      checksum,
+    });
 
     return {
       statusCode: 200,

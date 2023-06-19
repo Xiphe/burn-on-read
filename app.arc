@@ -17,6 +17,8 @@ runtime typescript
 
 @plugins
 architect/plugin-typescript
+fingerprinting-fix
+infra
 
 @static
 fingerprint true

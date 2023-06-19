@@ -366,11 +366,19 @@ function base64ToArray(base64) {
 
 /**
  * @param {Uint8Array} data
- * @returns
  */
 async function generateChecksum(data) {
   // Generate a SHA-256 hash of the data
   const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
 
-  return arrayToBase64(new Uint8Array(hashBuffer));
+  return toHexString(new Uint8Array(hashBuffer));
+}
+
+/**
+ * @param {Uint8Array} data
+ */
+function toHexString(data) {
+  return Array.from(data, (byte) => {
+    return ('0' + (byte & 0xff).toString(16)).slice(-2);
+  }).join('');
 }

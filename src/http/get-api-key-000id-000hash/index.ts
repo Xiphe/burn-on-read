@@ -41,7 +41,10 @@ export const handler = async (
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ status: 'ok', valid: entry.checksum === hash }),
+      body: JSON.stringify({
+        status: 'ok',
+        valid: entry.checksum === hash,
+      }),
       headers: {
         'content-type': 'application/json; charset=utf8',
       },
