@@ -3,6 +3,8 @@ import Document from '@architect/views/document';
 import Content from '@architect/views/content';
 import { tables } from '@architect/functions';
 import Reader from '@architect/views/reader';
+import { delayRandomly } from '@architect/shared/randomDelay';
+import { isRecord } from '@architect/shared/is';
 
 const NOT_FOUND = Symbol('NOT_FOUND');
 
@@ -51,7 +53,7 @@ export const handler = async (
           title: 'Not found',
           children: Content({
             children:
-              'This message either does not exist. This could also mean it has already been read',
+              'This message does not exist. This could also mean it has already been read',
           }),
         }),
         headers: {
@@ -74,12 +76,3 @@ export const handler = async (
     };
   }
 };
-
-function delayRandomly() {
-  const delay = 1000 + Math.random() * 3000;
-  return new Promise((resolve) => setTimeout(resolve, delay));
-}
-
-function isRecord(arg: unknown): arg is Record<string, unknown> {
-  return typeof arg === 'object' && arg !== null;
-}

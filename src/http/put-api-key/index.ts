@@ -1,6 +1,7 @@
 import { Context, APIGatewayProxyResult, APIGatewayEvent } from 'aws-lambda';
 import { tables } from '@architect/functions';
 import { randomUUID } from 'node:crypto';
+import { isRecord } from '@architect/shared/is';
 
 export const handler = async (
   event: APIGatewayEvent,
@@ -40,7 +41,3 @@ export const handler = async (
     };
   }
 };
-
-function isRecord(arg: unknown): arg is Record<string, unknown> {
-  return typeof arg === 'object' && arg !== null;
-}

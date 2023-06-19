@@ -1,5 +1,7 @@
 import { Context, APIGatewayProxyResult, APIGatewayEvent } from 'aws-lambda';
 import { tables } from '@architect/functions';
+import { delayRandomly } from '@architect/shared/randomDelay';
+import { isRecord } from '@architect/shared/is';
 
 export const handler = async (
   event: APIGatewayEvent,
@@ -55,12 +57,3 @@ export const handler = async (
     };
   }
 };
-
-function isRecord(arg: unknown): arg is Record<string, unknown> {
-  return typeof arg === 'object' && arg !== null;
-}
-
-function delayRandomly() {
-  const delay = 1000 + Math.random() * 3000;
-  return new Promise((resolve) => setTimeout(resolve, delay));
-}
