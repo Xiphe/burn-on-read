@@ -34,7 +34,7 @@ export const handler = async (
     return {
       statusCode: 200,
       body: Document({
-        navId: 'about',
+        navId: 'read',
         title: 'Someone has send you a secret message.',
         children: Content({
           children: Reader({ id }),

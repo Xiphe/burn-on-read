@@ -26,6 +26,8 @@ export default function Document({ children, navId, title }: DocumentProps) {
  <meta name="viewport" content="width=device-width, initial-scale=1">
  <link rel="shortcut icon" href="${asset('/favicon.png')}">
  <link rel="stylesheet" href="${asset('/styles.css')}">
+ <link rel="stylesheet" href="${asset('/vendor/quill.snow.css')}">
+ <script src="${asset('/vendor/quill.min.js')}" defer></script>
  <script src="${asset('/script.js')}" defer type="module"></script>
 </head>
 <body class="bg-stone-100 text-stone-950 dark:bg-stone-900 dark:text-stone-50">

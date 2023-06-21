@@ -2,8 +2,43 @@
  * @typedef {{ ciphertext: Uint8Array, iv: Uint8Array }} CipherMessage
  */
 
+/**
+ * @type {typeof import('quill').Quill}
+ */
+const Quill = /** @type {any} */ (window).Quill;
+
+const supportedQuillFormats = [
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'link',
+  'code',
+  'header',
+  'list',
+  'blockquote',
+  'code-block',
+  'align',
+  'indent',
+];
+
 async function main() {
-  document.getElementById('seal')?.addEventListener('click', handleSealClick);
+  if (document.getElementById('editor') !== null) {
+    var quill = new Quill('#editor', {
+      formats: supportedQuillFormats,
+      modules: {
+        toolbar: '#toolbar',
+      },
+      theme: 'snow',
+    });
+
+    quill.focus();
+
+    document.getElementById('seal')?.addEventListener('click', (event) => {
+      console.log(quill.getContents());
+      handleSealClick(event, quill);
+    });
+  }
 
   const $readButton = document.getElementById('read');
   if (isButton($readButton)) {
@@ -57,28 +92,33 @@ async function validateMessage(message, keyId) {
 
 /**
  * @param {MouseEvent} ev
+ * @param {import('quill').Quill} quill
  */
-async function handleSealClick(ev) {
+async function handleSealClick(ev, quill) {
   ev.preventDefault();
   ev.stopPropagation();
   const $sealButton = ev.target;
+  const $editor = document.getElementById('editor');
+  const $toolbar = document.getElementById('toolbar');
 
-  if (!isButton($sealButton)) {
-    throw new Error('Invalid event target');
+  if (
+    !isButton($sealButton) ||
+    !isHTMLElement($editor) ||
+    !isHTMLElement($toolbar)
+  ) {
+    throw new Error('Invalid app state');
   }
 
   $sealButton.setAttribute('disabled', 'true');
   $sealButton.innerText = 'Sealing...';
+  $editor.classList.remove('rounded-t-none');
+  $toolbar.querySelectorAll('button').forEach(($button) => {
+    $button.setAttribute('disabled', 'true');
+  });
 
-  const $editor = document.getElementById('editor');
+  quill.disable();
 
-  if (!isTextArea($editor)) {
-    throw new Error('No editor found');
-  }
-
-  $editor.setAttribute('readonly', 'true');
-
-  const message = $editor.value;
+  const message = JSON.stringify(quill.getContents());
   const sharableUrl = await handleEncryption(message);
 
   const $linkInput = document.createElement('input');
@@ -88,9 +128,9 @@ async function handleSealClick(ev) {
   $linkInput.setAttribute('class', linkStyles);
   $linkInput.value = sharableUrl;
 
-  // await handleDecryption(sharableUrl.split('#')[1], 'keyId');
-
+  $toolbar.remove();
   $sealButton.remove();
+
   $editor.replaceWith($linkInput);
   $linkInput.select();
 }
@@ -109,16 +149,28 @@ async function handleDecryptionClick(ev, message, keyId, checksum) {
   if (!isButton($readButton)) {
     throw new Error('Invalid event target');
   }
+  const $contentContainer = $readButton.parentElement;
+  if (!isHTMLElement($contentContainer)) {
+    throw new Error('Invalid app state');
+  }
 
   $readButton.setAttribute('disabled', 'true');
   $readButton.innerText = 'Decrypting...';
 
-  const decryptedMessage = await handleDecryption(message, keyId, checksum);
+  const decryptedDelta = await handleDecryption(message, keyId, checksum);
 
-  // todo: markdown
-  const $message = document.createElement('div');
-  $message.innerText = decryptedMessage;
-  $readButton.replaceWith($message);
+  const $editor = document.createElement('div');
+  const quill = new Quill($editor, {
+    formats: supportedQuillFormats,
+    modules: {
+      toolbar: false,
+    },
+    theme: 'snow',
+  });
+  quill.setContents(JSON.parse(decryptedDelta));
+  const content = quill.root.innerHTML;
+
+  $contentContainer.innerHTML = content;
 }
 
 /**
