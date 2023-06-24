@@ -88,8 +88,6 @@ async function handleSealClick(ev) {
   $linkInput.setAttribute('class', linkStyles);
   $linkInput.value = sharableUrl;
 
-  // await handleDecryption(sharableUrl.split('#')[1], 'keyId');
-
   $sealButton.remove();
   $editor.replaceWith($linkInput);
   $linkInput.select();
@@ -132,7 +130,6 @@ async function handleEncryption(message) {
     new Uint8Array([...encryptedMessage, ...iv]),
   );
 
-  // TODO: Save key to database
   const res = await fetch('/api/key', {
     method: 'PUT',
     headers: {
