@@ -4,6 +4,9 @@
 
 async function main() {
   document.getElementById('seal')?.addEventListener('click', handleSealClick);
+  document
+    .getElementById('preview')
+    ?.addEventListener('click', handlePreviewClick);
 
   const $readButton = document.getElementById('read');
   if (isButton($readButton)) {
@@ -58,6 +61,41 @@ async function validateMessage(message, keyId) {
 /**
  * @param {MouseEvent} ev
  */
+function handlePreviewClick(ev) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  const $previewButton = ev.target;
+  const $editor = document.getElementById('editor');
+  const $previewContainer = document.getElementById('preview-container');
+
+  if (
+    !isButton($previewButton) ||
+    !isTextArea($editor) ||
+    !isHTMLElement($previewContainer)
+  ) {
+    throw new Error('Unexpected App state');
+  }
+
+  if ($editor.classList.contains('hidden')) {
+    $previewContainer.classList.add('hidden');
+    $editor.classList.remove('hidden');
+    $editor.focus();
+    $previewButton.innerText = 'Preview';
+  } else {
+    const message = $editor.value;
+
+    const text = markdownToHtml(message);
+    console.log(text);
+    $previewContainer.innerHTML = text;
+    $editor.classList.add('hidden');
+    $previewContainer.classList.remove('hidden');
+    $previewButton.innerText = 'Edit';
+  }
+}
+
+/**
+ * @param {MouseEvent} ev
+ */
 async function handleSealClick(ev) {
   ev.preventDefault();
   ev.stopPropagation();
@@ -89,6 +127,8 @@ async function handleSealClick(ev) {
   $linkInput.value = sharableUrl;
 
   $sealButton.remove();
+  document.getElementById('preview')?.remove();
+  document.getElementById('preview-container')?.remove();
   $editor.replaceWith($linkInput);
   $linkInput.select();
 }
@@ -103,8 +143,9 @@ async function handleDecryptionClick(ev, message, keyId, checksum) {
   ev.preventDefault();
   ev.stopPropagation();
   const $readButton = ev.target;
+  const $message = document.getElementById('message');
 
-  if (!isButton($readButton)) {
+  if (!isButton($readButton) || !isHTMLElement($message)) {
     throw new Error('Invalid event target');
   }
 
@@ -113,10 +154,9 @@ async function handleDecryptionClick(ev, message, keyId, checksum) {
 
   const decryptedMessage = await handleDecryption(message, keyId, checksum);
 
-  // todo: markdown
-  const $message = document.createElement('div');
-  $message.innerText = decryptedMessage;
-  $readButton.replaceWith($message);
+  $message.innerHTML = markdownToHtml(decryptedMessage);
+  $readButton.remove();
+  $message.classList.remove('hidden');
 }
 
 /**
@@ -378,4 +418,179 @@ function toHexString(data) {
   return Array.from(data, (byte) => {
     return ('0' + (byte & 0xff).toString(16)).slice(-2);
   }).join('');
+}
+
+/**
+ * Based on https://github.com/developit/snarkdown
+ * MIT License (https://github.com/developit/snarkdown/blob/main/LICENSE)
+ */
+const TAGS = {
+  '': ['<em>', '</em>'],
+  _: ['<strong>', '</strong>'],
+  '*': ['<strong>', '</strong>'],
+  '~': ['<s>', '</s>'],
+  '\n': ['<br />'],
+  ' ': ['<br />'],
+  '-': ['<hr />'],
+};
+/**
+ * @param {string} str
+ */
+function toId(str) {
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+/**
+ * Outdent a string based on the first indented line's leading whitespace
+ * @param {string} str
+ */
+function outdent(str) {
+  return str.replace(RegExp('^' + (str.match(/^(\t| )+/) || '')[0], 'gm'), '');
+}
+/**
+ * Encode special attribute characters to HTML entities in a String.
+ * @param {string} str
+ */
+function encodeAttr(str) {
+  return (str + '')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+/**
+ * Parse Markdown into an HTML String.
+ * @param {string} md
+ * @param {Record<string, string>=} prevLinks
+ */
+function markdownToHtml(md, prevLinks) {
+  let tokenizer =
+      /((?:^|\n+)(?:\n---+|\* \*(?: \*)+)\n)|(?:^``` *(\w*)\n([\s\S]*?)\n```$)|((?:(?:^|\n+)(?:\t|  {2,}).+)+\n*)|((?:(?:^|\n)([>*+-]|\d+\.)\s+.*)+)|(?:!\[([^\]]*?)\]\(([^)]+?)\))|(\[)|(\](?:\(([^)]+?)\))?)|(?:(?:^|\n+)([^\s].*)\n(-{3,}|={3,})(?:\n+|$))|(?:(?:^|\n+)(#{1,6})\s*(.+)(?:\n+|$))|(?:`([^`].*?)`)|(  \n\n*|\n{2,}|__|\*\*|[_*]|~~)/gm,
+    context = [],
+    out = '',
+    links = prevLinks || {},
+    last = 0,
+    chunk,
+    prev,
+    token,
+    inner,
+    t;
+
+  function tag(token) {
+    let desc = TAGS[token[1] || ''];
+    /** @type {any} */
+    let end = context[context.length - 1] == token;
+    if (!desc) return token;
+    if (!desc[1]) return desc[0];
+    if (end) context.pop();
+    else context.push(token);
+    return desc[end | 0];
+  }
+
+  function flush() {
+    let str = '';
+    while (context.length) str += tag(context[context.length - 1]);
+    return str;
+  }
+
+  md = md
+    // ADDED: disallow any html
+    .replace(/</gm, '&lt;')
+    .replace(/(.)>/gm, '$1&gt;')
+    .replace(/"/gm, '&quot;')
+    .replace(/'/gm, '&#039;')
+    // END ADDED
+    .replace(/^\[(.+?)\]:\s*(.+)$/gm, (s, name, url) => {
+      links[name.toLowerCase()] = url;
+      return '';
+    })
+    .replace(/^\n+|\n+$/g, '');
+
+  while ((token = tokenizer.exec(md))) {
+    prev = md.substring(last, token.index);
+    last = tokenizer.lastIndex;
+    chunk = token[0];
+    if (prev.match(/[^\\](\\\\)*\\$/)) {
+      // escaped
+    }
+    // Code/Indent blocks:
+    else if ((t = token[3] || token[4])) {
+      chunk =
+        '<pre class="code ' +
+        (token[4] ? 'poetry' : token[2].toLowerCase()) +
+        '"><code' +
+        (token[2] ? ` class="language-${token[2].toLowerCase()}"` : '') +
+        '>' +
+        outdent(encodeAttr(t).replace(/^\n+|\n+$/g, '')) +
+        '</code></pre>';
+    }
+    // > Quotes, -* lists:
+    else if ((t = token[6])) {
+      if (t.match(/\./)) {
+        token[5] = token[5].replace(/^\d+/gm, '');
+      }
+      inner = markdownToHtml(outdent(token[5].replace(/^\s*[>*+.-]/gm, '')));
+      if (t == '>') t = 'blockquote';
+      else {
+        t = t.match(/\./) ? 'ol' : 'ul';
+        inner = inner.replace(/^(.*)(\n|$)/gm, '<li>$1</li>');
+      }
+      chunk = '<' + t + '>' + inner + '</' + t + '>';
+    }
+    // Images:
+    else if (token[8]) {
+      chunk = `<a href="${encodeAttr(
+        token[8],
+      )}" target="_blank" rel="noreferrer">Image: ${encodeAttr(token[7])}</a>`;
+    }
+    // Links:
+    else if (token[10]) {
+      out = out.replace(
+        '<a>',
+        `<a href="${encodeAttr(
+          token[11] || links[prev.toLowerCase()],
+        )}" target="_blank" rel="noreferrer">`,
+      );
+      chunk = flush() + '</a>';
+    } else if (token[9]) {
+      chunk = '<a>';
+    }
+    // Headings:
+    else if (token[12] || token[14]) {
+      console.log(token[12] || token[15]);
+
+      t = 'h' + (token[14] ? token[14].length : token[13] > '=' ? 1 : 2);
+      chunk =
+        '<' +
+        t +
+        ' id="' +
+        toId(token[12] || token[15]) +
+        '">' +
+        markdownToHtml(token[12] || token[15], links) +
+        '</' +
+        t +
+        '>';
+    }
+    // `code`:
+    else if (token[16]) {
+      chunk = '<code>' + encodeAttr(token[16]) + '</code>';
+    }
+    // Inline formatting: *em*, **strong** & friends
+    else if (token[17] || token[1]) {
+      chunk = tag(token[17] || '--');
+    }
+    out += prev;
+    out += chunk;
+  }
+
+  return (
+    (out + md.substring(last) + flush())
+      .replace(/^\n+|\n+$/g, '')
+      // ADDED: remove escape characters
+      .replace(/\\([0-9\*_~\[\]\-])/g, '$1')
+      // END ADDED
+      .replace(/\<\/ul\>\<br \/\>/g, '</ul>')
+  );
 }

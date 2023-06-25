@@ -1,4 +1,9 @@
-import { buttonStyles, focusStyles } from './common';
+import {
+  buttonStyles,
+  contentStyles,
+  focusStyles,
+  proseStyles,
+} from './common';
 
 export type Props = {
   id: string;
@@ -6,6 +11,8 @@ export type Props = {
 
 export default function Reader({ id }: Props) {
   return `
+<div id="message" class="hidden ${proseStyles}">
+</div>
 <button
   id="read"
   class="${buttonStyles} ${focusStyles}"
