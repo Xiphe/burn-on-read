@@ -1,7 +1,7 @@
-import { KMS } from 'aws-sdk';
+import { KMSClient, EncryptCommand, DecryptCommand } from '@aws-sdk/client-kms';
 import { ok } from 'node:assert';
 
-const kms = new KMS();
+const kms = new KMSClient();
 
 const ARC_ENV = process.env.ARC_ENV;
 ok(ARC_ENV, 'Missing ARC_ENV');
@@ -18,18 +18,17 @@ export async function encrypt(data: Buffer) {
     return data.toString('base64') + ' (encrypted)';
   }
 
-  const result = await kms
-    .encrypt({
-      KeyId: SERVER_ENCRYPTION_KEY!,
-      Plaintext: data,
-    })
-    .promise();
+  const command = new EncryptCommand({
+    KeyId: SERVER_ENCRYPTION_KEY!,
+    Plaintext: Uint8Array.from(data),
+  });
+  const response = await kms.send(command);
 
-  if (!result.CiphertextBlob) {
+  if (!response.CiphertextBlob) {
     throw new Error('Failed to encrypt data');
   }
 
-  return result.CiphertextBlob.toString('base64');
+  return Buffer.from(response.CiphertextBlob).toString('base64');
 }
 
 export async function decrypt(data: string) {
@@ -37,13 +36,15 @@ export async function decrypt(data: string) {
     return Buffer.from(data.replace(/ \(encrypted\)$/, ''), 'base64');
   }
 
-  const result = await kms
-    .decrypt({ CiphertextBlob: Buffer.from(data, 'base64') })
-    .promise();
+  const command = new DecryptCommand({
+    CiphertextBlob: Uint8Array.from(Buffer.from(data, 'base64')),
+  });
 
-  if (!result.Plaintext) {
+  const response = await kms.send(command);
+
+  if (!response.Plaintext) {
     throw new Error('Failed to decode data');
   }
 
-  return result.Plaintext.toString('base64');
+  return Buffer.from(response.Plaintext).toString('base64');
 }

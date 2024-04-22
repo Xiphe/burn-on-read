@@ -26,3 +26,8 @@ fingerprint true
 @tables
 keys
   id *String
+
+@typescript
+base-runtime nodejs20.x
+esbuild-config esbuild.custom.cjs
+

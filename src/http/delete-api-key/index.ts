@@ -1,4 +1,8 @@
-import { Context, APIGatewayProxyResult, APIGatewayEvent } from 'aws-lambda';
+import type {
+  Context,
+  APIGatewayProxyResult,
+  APIGatewayEvent,
+} from 'aws-lambda';
 import { tables } from '@architect/functions';
 import { delayRandomly } from '@architect/shared/randomDelay';
 import { isRecord } from '@architect/shared/is';

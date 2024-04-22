@@ -1,4 +1,8 @@
-import { Context, APIGatewayProxyResult, APIGatewayEvent } from 'aws-lambda';
+import type {
+  Context,
+  APIGatewayProxyResult,
+  APIGatewayEvent,
+} from 'aws-lambda';
 import { tables } from '@architect/functions';
 import { randomUUID } from 'node:crypto';
 import { isRecord } from '@architect/shared/is';

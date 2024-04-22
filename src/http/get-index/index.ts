@@ -1,4 +1,8 @@
-import { Context, APIGatewayProxyResult, APIGatewayEvent } from 'aws-lambda';
+import type {
+  Context,
+  APIGatewayProxyResult,
+  APIGatewayEvent,
+} from 'aws-lambda';
 import Document from '@architect/views/document';
 import Content from '@architect/views/content';
 
